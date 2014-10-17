@@ -30,7 +30,7 @@ class UndoManager
       )
     )
     @quill.on(@quill.constructor.events.TEXT_CHANGE, (delta, origin) =>
-      if origin == 'silent' && delta.isEqual(@emittedDelta)
+      if origin == 'silent' || delta.isEqual(@emittedDelta)
         @emittedDelta = null
         return
       this.record(delta, @oldDelta)
