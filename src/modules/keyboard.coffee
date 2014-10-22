@@ -1,7 +1,7 @@
 Quill  = require('../quill')
 _      = Quill.require('lodash')
 dom    = Quill.require('dom')
-Tandem = Quill.require('tandem-core')
+Delta  = Quill.require('delta')
 
 
 class Keyboard
@@ -18,12 +18,15 @@ class Keyboard
     this._initHotkeys()
     this._initDeletes()
 
-  addHotkey: (hotkey, callback) ->
-    hotkey = if _.isObject(hotkey) then _.clone(hotkey) else { key: hotkey }
-    hotkey.callback = callback
-    which = if _.isNumber(hotkey.key) then hotkey.key else hotkey.key.toUpperCase().charCodeAt(0)
-    @hotkeys[which] ?= []
-    @hotkeys[which].push(hotkey)
+  addHotkey: (hotkeys, callback) ->
+    hotkeys = [hotkeys] unless _.isArray(hotkeys)
+    _.each(hotkeys, (hotkey) =>
+      hotkey = if _.isObject(hotkey) then _.clone(hotkey) else { key: hotkey }
+      hotkey.callback = callback
+      which = if _.isNumber(hotkey.key) then hotkey.key else hotkey.key.toUpperCase().charCodeAt(0)
+      @hotkeys[which] ?= []
+      @hotkeys[which].push(hotkey)
+    )
 
   toggleFormat: (range, format) ->
     if range.isCollapsed()
@@ -31,7 +34,7 @@ class Keyboard
     else
       delta = @quill.getContents(range)
     value = delta.ops.length == 0 or !_.all(delta.ops, (op) ->
-      return op.attributes[format]
+      return op.attributes?[format]
     )
     if range.isCollapsed()
       @quill.prepareFormat(format, value)
@@ -41,11 +44,9 @@ class Keyboard
     toolbar.setActive(format, value) if toolbar?
 
   _initDeletes: ->
-    _.each([dom.KEYS.DELETE, dom.KEYS.BACKSPACE], (key) =>
-      this.addHotkey(key, =>
-        # Prevent deleting if editor is already blank (or just empty newline)
-        return @quill.getLength() > 1
-      )
+    this.addHotkey([dom.KEYS.DELETE, dom.KEYS.BACKSPACE], =>
+      # Prevent deleting if editor is already blank (or just empty newline)
+      return @quill.getLength() > 1
     )
 
   _initHotkeys: ->
@@ -73,6 +74,7 @@ class Keyboard
         return if !!hotkey.shiftKey != !!event.shiftKey
         return if !!hotkey.altKey != !!event.altKey
         prevent = hotkey.callback(@quill.getSelection()) == false or prevent
+        return true
       )
       return !prevent
     )
@@ -82,14 +84,10 @@ class Keyboard
     # Behavior according to Google Docs + Word
     # When tab on one line, regardless if shift is down, delete selection and insert a tab
     # When tab on multiple lines, indent each line if possible, outdent if shift is down
-    delta = Tandem.Delta.makeDelta({
-      startLength: @quill.getLength()
-      ops: [
-        { start: 0, end: range.start }
-        { value: "\t" }
-        { start: range.end, end: @quill.getLength() }
-      ]
-    })
+    delta = new Delta().retain(range.start)
+                       .insert("\t")
+                       .delete(range.end - range.start)
+                       .retain(@quill.getLength() - range.end)
     @quill.updateContents(delta)
     @quill.setSelection(range.start + 1, range.start + 1)
 

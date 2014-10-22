@@ -122,9 +122,9 @@ class Wrapper
     return this
 
   on: (eventName, listener) ->
-    @node.addEventListener(eventName, (event) ->
+    @node.addEventListener(eventName, (event) =>
       arg = if lastKeyEvent and (eventName == 'keydown' or eventName == 'keyup') then lastKeyEvent else event
-      propagate = listener(arg)
+      propagate = listener.call(@node, arg) # Native addEventListener binds this to event target
       unless propagate
         event.preventDefault()
         event.stopPropagation()
@@ -307,7 +307,11 @@ class SelectWrapper extends Wrapper
   option: (option, trigger = true) ->
     value = if _.isElement(option) then option.value else option
     if value
-      @node.value = value
+      value = value.replace(/[^\w]+/g, '')
+      for child,i in @node.children
+        if child.value.replace(/[^\w]+/g, '') == value
+          @node.selectedIndex = i
+          break
     else
       @node.selectedIndex = -1  # PhantomJS
     this.trigger('change') if trigger

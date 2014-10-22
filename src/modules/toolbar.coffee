@@ -30,12 +30,19 @@ class Toolbar
         else
           @quill.formatText(range, format, value, 'user')
         _.defer( =>
-          this.updateActive(range)  # Clear exclusive formats
+          this.updateActive(range, ['bullet', 'list'])  # Clear exclusive formats
           this.setActive(format, value)
         )
       )
     )
-    @quill.on(@quill.constructor.events.SELECTION_CHANGE, _.bind(this.updateActive, this))
+    @quill.on(@quill.constructor.events.SELECTION_CHANGE, (range) =>
+      this.updateActive(range) if range?
+    )
+    @quill.onModuleLoad('keyboard', (keyboard) =>
+      keyboard.addHotkey([dom.KEYS.BACKSPACE, dom.KEYS.DELETE, dom.KEYS.ENTER], =>
+        _.defer(_.bind(this.updateActive, this))
+      )
+    )
     dom(@container).addClass('ql-toolbar-container')
     dom(@container).addClass('ios') if dom.isIOS()  # Fix for iOS not losing hover state after click
     if dom.isIE(11)
@@ -71,21 +78,24 @@ class Toolbar
     if input.tagName == 'SELECT'
       @triggering = true
       selectValue = $input.value(input)
-      value = '' if _.isArray(value)
+      value = $input.default()?.value unless value?
+      value = '' if _.isArray(value)  # Must be a defined falsy value
       if value != selectValue
         if value?
-          $input.option(value)
+          $input.option(value, false)
         else
-          $input.reset()
+          $input.reset(false)
       @triggering = false
     else
       $input.toggleClass('ql-active', value or false)
 
-  updateActive: (range) ->
+  updateActive: (range, formats = null) ->
+    range or= @quill.getSelection()
     return unless range? and !@preventUpdate
     activeFormats = this._getActive(range)
     _.each(@inputs, (input, format) =>
-      this.setActive(format, activeFormats[format])
+      if !_.isArray(formats) or formats.indexOf(format) > -1
+        this.setActive(format, activeFormats[format])
       return true
     )
 

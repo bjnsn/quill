@@ -1,3 +1,5 @@
+_ = Quill.require('lodash')
+
 basicEditor = new Quill('.basic-wrapper .editor-container',
   modules:
     authorship: { authorId: 'basic' }
@@ -26,12 +28,12 @@ basicEditor.on('selection-change', (range) ->
 )
 
 basicEditor.on('text-change', (delta, source) ->
-  console.info 'basic', 'text', delta, source
   return if source == 'api'
+  console.info 'basic', 'text', delta, source
   advancedEditor.updateContents(delta)
   sourceDelta = basicEditor.getContents()
   targetDelta = advancedEditor.getContents()
-  console.assert(sourceDelta.isEqual(targetDelta), "Editor diversion!", sourceDelta, targetDelta)
+  console.assert(_.isEqual(sourceDelta, targetDelta), "Editor diversion!", sourceDelta.ops, targetDelta.ops)
 )
 
 advancedEditor.on('selection-change', (range) ->
@@ -39,10 +41,10 @@ advancedEditor.on('selection-change', (range) ->
 )
 
 advancedEditor.on('text-change', (delta, source) ->
-  console.info 'advanced', 'text', delta, source
   return if source == 'api'
+  console.info 'advanced', 'text', delta, source
   basicEditor.updateContents(delta)
   sourceDelta = advancedEditor.getContents()
   targetDelta = basicEditor.getContents()
-  console.assert(sourceDelta.isEqual(targetDelta), "Editor diversion!", sourceDelta, targetDelta)
+  console.assert(_.isEqual(sourceDelta, targetDelta), "Editor diversion!", sourceDelta.ops, targetDelta.ops)
 )

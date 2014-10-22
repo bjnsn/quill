@@ -35,12 +35,7 @@ describe('Editing text', ->
     updateEditor()
     expect(editor.getInnerHtml().then(cleanLines)).toEqual("<div>#{text}</div>")
     expectedDelta = {
-      startLength: 1,
-      endLength: text.length + 1,
-      ops: [
-        { value: text, attributes: {} }
-        { start: 0, end: 1, attributes: {} }
-      ]
+      ops: [{ insert: text }]
     }
     browser.switchTo().defaultContent()
     expect(deltaOutput.getText()).toEqual(JSON.stringify(expectedDelta))
@@ -50,25 +45,39 @@ describe('Editing text', ->
   )
 
   it('enter', ->
+    editor.sendKeys(protractor.Key.RETURN)
+    expectedDelta = { ops: [{ retain: 10 }, { insert: '\n' }] }
+    browser.switchTo().defaultContent()
+    expect(deltaOutput.getText()).toEqual(JSON.stringify(expectedDelta))
+    browser.switchTo().frame('quill-1')
+
+    editor.sendKeys(protractor.Key.RETURN)
+    expectedDelta = { ops: [{ retain: 11 }, { insert: '\n' }] }
+    browser.switchTo().defaultContent()
+    expect(deltaOutput.getText()).toEqual(JSON.stringify(expectedDelta))
+    browser.switchTo().frame('quill-1')
+
     text = 'Chapter 1. Loomings.'
-    editor.sendKeys(protractor.Key.RETURN, protractor.Key.RETURN, text, protractor.Key.RETURN)
-    updateEditor()
+    editor.sendKeys(text)
+    updateEditor(false)
+    # The previous newline inserts was assumed to be appended since the insertion character matches
+    # the last character of the document. There is no such ambiguity here so the number of retains
+    # is the same as the last delta
+    expectedDelta = { ops: [{ retain: 11 }, { insert: "#{text}" }] }
+    expect(deltaOutput.getText()).toEqual(JSON.stringify(expectedDelta))
+    browser.switchTo().frame('quill-1')
+
+    editor.sendKeys(protractor.Key.RETURN)
+    expectedDelta = { ops: [{ retain: 32 }, { insert: '\n' }] }
+    browser.switchTo().defaultContent()
+    expect(deltaOutput.getText()).toEqual(JSON.stringify(expectedDelta))
+    browser.switchTo().frame('quill-1')
     expect(editor.getInnerHtml().then(cleanLines)).toEqual([
       '<div>The Whale</div>'
       '<div><br></div>'
       "<div>#{text}</div>"
       '<div><br></div>'
     ].join(''))
-    browser.switchTo().defaultContent()
-    expectedDelta = {
-      startLength: 10
-      endLength: text.length + 10 + 3
-      ops: [
-        { start: 0, end: 10, attributes: {} }
-        { value: "\n#{text}\n\n", attributes: {} }
-      ]
-    }
-    expect(deltaOutput.getText()).toEqual(JSON.stringify(expectedDelta))
   )
 
   it('tab', ->
@@ -150,12 +159,7 @@ describe('Editing text', ->
     )
     browser.switchTo().defaultContent()
     expectedDelta = {
-      startLength: 1521
-      endLength: text.length + 1521
-      ops: [
-        { value: text, attributes: { size: '32px' } }
-        { start: 0, end: 1521, attributes: {} }
-      ]
+      ops: [{ attributes: { size: '32px' }, insert: text }]
     }
     expect(deltaOutput.getText()).toEqual(JSON.stringify(expectedDelta))
   )
@@ -176,12 +180,9 @@ describe('Editing text', ->
     )
     browser.switchTo().defaultContent()
     expectedDelta = {
-      startLength: 1530
-      endLength: 1530
       ops: [
-        { start: 0, end: 10, attributes: {} }
-        { start: 10, end: 30, attributes: { bold: true } }
-        { start: 30, end: 1530, attributes: {} }
+        { retain: 10 }
+        { retain: 20, attributes: { bold: true } }
       ]
     }
     expect(deltaOutput.getText()).toEqual(JSON.stringify(expectedDelta))
@@ -202,14 +203,11 @@ describe('Editing text', ->
     )
     browser.switchTo().defaultContent()
     expectedDelta = {
-      startLength: 1530
-      endLength: 1530
       ops: [
-        { start: 0, end: 9, attributes: {} }
-        { start: 9, end: 10, attributes: { align: 'center' } }
-        { start: 10, end: 30, attributes: {} }
-        { start: 30, end: 31, attributes: { align: 'center' } }
-        { start: 31, end: 1530, attributes: {} }
+        { retain: 9 }
+        { retain: 1, attributes: { align: 'center' } }
+        { retain: 20 }
+        { retain: 1, attributes: { align: 'center' } }
       ]
     }
     expect(deltaOutput.getText()).toEqual(JSON.stringify(expectedDelta))
